@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/gocolly/colly"
 	jsoniter "github.com/json-iterator/go"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 )
@@ -125,27 +127,71 @@ func (qds *QdsScraper) FetchContactInfo(name string) (TycMessageItem, error){
 	return tycItem, nil
 }
 
-func (qds *QdsScraper) PutData(data Record) error {
+func (qds *QdsScraper) PutData(data Record) (err error) {
 	path := "./data"
-	_, err := os.Stat(path)
+	_, err = os.Stat(path)
 	if !os.IsExist(err){
 		err = os.Mkdir(path, 0777)
 		if err != nil {
 			log.Fatal(err)
+			return
 		}
 	}
 	csvFile := path + "/data.csv"
 	var f *os.File
 	f, err = os.OpenFile(csvFile, os.O_APPEND|os.O_CREATE, 0755)
+
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
-	line := data.ToString()
-	_, err = f.Write([]byte(line))
+	uline := data.ToString()
+	_, err = f.Write(uline)
 	if err != nil {
 		log.Fatal(err)
+		return
+	}
+	if err := f.Close(); err != nil {
+		log.Fatal(err)
+		return
 	}
 	//download image
+	imageBytes, err := qds.FetchImageByUrl(data.Link)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 	imageFile := "./data/"+data.RegNo+data.ApplicationCn.".jpg"
-	return nil
+	f, err = os.OpenFile(imageFile, os.O_CREATE|os.O_RDWR, 0755)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	_, err = f.Write(imageBytes)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	if err = f.Close(); err != nil {
+		log.Fatal(err)
+		return
+	}
+	return
+}
+
+func (qds *QdsScraper) FetchImageByUrl(url string) (pix []byte, err error) {
+
+		resp, err := http.Get(url)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		defer resp.Body.Close()
+		pix, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		return
+	}
 }

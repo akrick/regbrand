@@ -1,6 +1,12 @@
 package main
 
-import "strconv"
+import (
+	"bytes"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
+	"io/ioutil"
+	"strconv"
+)
 
 type Record struct {
 	AnnouncementIssue int
@@ -14,8 +20,20 @@ type Record struct {
 	Link string
 }
 
-func (r *Record) ToString() string {
+func (r *Record) ToString() (uline []byte, err error) {
 	line := ""
 	line += strconv.Itoa(r.AnnouncementIssue)+","+r.RegNo+","+r.TmName+","+strconv.Itoa(r.IntCls)+","+r.ApplicationCn+","+r.LegalPersonName+","+r.PhoneNumber+","+r.RegLocation+","+r.Link+"\n"
-	return line
+	uline, err := r.GbkToUtf8([]byte(line))
+	if err != nil{
+		return
+	}
+	return
+}
+func  (r *Record) GbkToUtf8(str []byte) (rs []byte, err error) {
+	rd := transform.NewReader(bytes.NewReader(str), simplifiedchinese.GBK.NewDecoder())
+	rs, err = ioutil.ReadAll(rd)
+	if err != nil {
+		return
+	}
+	return
 }
