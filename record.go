@@ -23,7 +23,7 @@ type Record struct {
 func (r *Record) ToString() (uline []byte, err error) {
 	line := ""
 	line += strconv.Itoa(r.AnnouncementIssue)+","+r.RegNo+","+r.TmName+","+strconv.Itoa(r.IntCls)+","+r.ApplicationCn+","+r.LegalPersonName+","+r.PhoneNumber+","+r.RegLocation+","+r.Link+"\n"
-	uline, err := r.GbkToUtf8([]byte(line))
+	uline, err = r.GbkToUtf8([]byte(line))
 	if err != nil{
 		return
 	}
