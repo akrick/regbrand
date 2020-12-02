@@ -81,16 +81,14 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 						record.RegNo = item.RegNo
 						record.AnnouncementIssue = item.AnnouncementIssue
 
-						fmt.Println(item)
-						fmt.Println(tycItem)
-						os.Exit(0)
 						err = qds.PutData(record)
 						if err != nil {
 							log.Fatal(err)
 							return
 						}
+						fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName)
 					}else{
-						log.Fatal(tycMsg)
+						fmt.Println(tycMsg)
 					}
 				}
 			})
