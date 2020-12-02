@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	url2 "net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -16,8 +17,8 @@ type QdsScraper struct {
 	Ql interface{}
 	Url string
 	Cookie string
-	No int32
-	Catalog int32
+	No int
+	Catalog int
 }
 
 func (qds *QdsScraper) SetCookie(cookie string) {
@@ -27,7 +28,7 @@ func (qds *QdsScraper) SetUrl(url string) {
 	qds.Url = url
 }
 func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error){
-
+	qds.No = period
 	if pageNum > 0 {
 		c := colly.NewCollector()
 		for i := 1; i <= pageNum; i++{
@@ -57,27 +58,37 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 				}
 				for _, item := range result {
 					var record Record
-					item.Link, _ = qds.FetchImage(item.RegNo, item.TmName)
-					tycItem, err := qds.FetchContactInfo(item.ApplicantCn)
+					item.Link, _ = qds.FetchImage(item.RegNo, period, item.TmName)
+					tycMsg, err := qds.FetchContactInfo(item.ApplicantCn)
 					if err != nil{
 						log.Fatal(err)
 						return
 					}
-					record.ApplicationCn = item.ApplicantCn
-					record.RegLocation = tycItem.RegLocation
-					record.Link = item.Link
-					record.PhoneNumber = tycItem.PhoneNumber
-					record.LegalPersonName = tycItem.LegalPersonName
-					record.TmName = item.TmName
-					record.IntCls = item.IntCls
-					record.RegNo = item.RegNo
-					record.AnnouncementIssue = item.AnnouncementIssue
+					//if found contact info
+					if tycMsg.ErrorCode == 0 {
+						var tycItem TycMessageItem
+						for _, row := range tycMsg.Result{
+							tycItem = row
+							break
+						}
+						record.ApplicationCn = item.ApplicantCn
+						record.RegLocation = tycItem.RegLocation
+						record.Link = item.Link
+						record.PhoneNumber = tycItem.PhoneNumber
+						record.LegalPersonName = tycItem.LegalPersonName
+						record.TmName = item.TmName
+						record.IntCls = item.IntCls
+						record.RegNo = item.RegNo
+						record.AnnouncementIssue = item.AnnouncementIssue
 
-					fmt.Println(record)
-					err = qds.PutData(record)
-					if err != nil {
-						log.Fatal(err)
-						return
+						fmt.Println(item)
+						fmt.Println(tycItem)
+						os.Exit(0)
+						err = qds.PutData(record)
+						if err != nil {
+							log.Fatal(err)
+							return
+						}
 					}
 				}
 			})
@@ -96,24 +107,22 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 	return
 }
 
-func (qds *QdsScraper) FetchImage(id string, name string)  (link string, err error) {
-	url := "https://so.quandashi.com/search/notice/notice-detail"
+func (qds *QdsScraper) FetchImage(id string, period int, name string)  (link string, err error) {
+	params := url2.Values{}
+	params.Add("id", id)
+	params.Add("issue", strconv.Itoa(period))
+	params.Add("name", name)
+	query := params.Encode()
+	url := "https://so.quandashi.com/search/notice/notice-detail?"+query
 	c := colly.NewCollector()
 	c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("cookie", qds.Cookie)
-		r.Ctx.Put("id", id)
-		r.Ctx.Put("issue", qds.No)
-		r.Ctx.Put("name", name)
 	})
 	c.OnHTML("body > div.page.pt-search > div.w-center > div.page-detail > div.content > img", func(e *colly.HTMLElement) {
 		link = e.Attr("src")
 	})
 	c.OnError(func(res *colly.Response, err error) {
 		log.Fatal(err)
-		return
-	})
-	c.OnResponse(func(res *colly.Response) {
-
 	})
 	err = c.Visit(url)
 	if err != nil{
@@ -123,17 +132,13 @@ func (qds *QdsScraper) FetchImage(id string, name string)  (link string, err err
 	return
 }
 
-func (qds *QdsScraper) FetchContactInfo(name string) (tycItem TycMessageItem, err error){
+func (qds *QdsScraper) FetchContactInfo(name string) (tycMsg TycMessage, err error){
 	tyc := new(TianYanCha)
 	tyc.SetToken("eab5ec28-886d-4079-99f1-f6b80e00f29a")
-	info, err := tyc.GetMessageByUrlToken(name)
+	tycMsg, err = tyc.GetMessageByUrlToken(name)
 	if err != nil{
 		log.Fatal(err)
 		return
-	}
-	for _, item := range info.Result{
-		tycItem = item
-		break
 	}
 	return
 }
