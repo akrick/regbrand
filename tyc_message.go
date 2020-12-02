@@ -3,7 +3,7 @@ package main
 type TycMessage struct {
 	Reason string `json:"reason"`
 	ErrorCode int `json:"error_code"`
-	Result []TycMessageItem
+	Result *TycMessageItem
 }
 
 type TycMessageItem struct {
@@ -21,7 +21,7 @@ type TycMessageItem struct {
 	RegInstitute string `json:"regInstitute"`
 	RegLocation string `json:"regLocation"`
 	ApprovedTime int `json:"approvedTime"`
-	UpdateTimes string `json:"updateTimes"`
+	UpdateTimes int `json:"updateTimes"`
 	SocialStaffNum int `json:"socialStaffNum"`
 	Tags string `json:"tags"`
 	TaxNumber string `json:"taxNumber"`
@@ -33,12 +33,12 @@ type TycMessageItem struct {
 	EstiblishTime int `json:"estiblishTime"`
 	BondType string `json:"bondType"`
 	LegalPersonName string `json:"legalPersonName"`
-	ToTime string `json:"toTime"`
+	ToTime int `json:"toTime"`
 	ActualCapital string `json:"actualCapital"`
 	CompanyOrgType string `json:"companyOrgType"`
 	Base string `json:"base"`
 	CreditCode string `json:"creditCode"`
-	HistoryNames []HistoryName
+	HistoryNames *HistoryName
 	HistoryNameList string `json:"historyNameList"`
 	BondNum string `json:"bondNum"`
 	RegCapitalCurrency string `json:"regCapitalCurrency"`
@@ -52,7 +52,7 @@ type TycMessageItem struct {
 	CancelReason string `json:"cancelReason"`
 	City string `json:"city"`
 	District string `json:"district"`
-	IndustryAll []Industry
+	IndustryAll *Industry
 	Reason string `json:"reason"`
 	ErrorCode int `json:"error_code"`
 }

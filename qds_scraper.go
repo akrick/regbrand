@@ -31,7 +31,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 	qds.No = period
 	if pageNum > 0 {
 		c := colly.NewCollector()
-		for i := 1; i <= pageNum; i++{
+		for i := 0; i <= pageNum; i++{
 			url := qds.Url + "?&period="+strconv.Itoa(period)+"&category="+strconv.Itoa(category)+"&page="+strconv.Itoa(i)
 			c.OnRequest(func(r *colly.Request) {
 				r.Headers.Set("cookie", qds.Cookie)
@@ -66,11 +66,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 					}
 					//if found contact info
 					if tycMsg.ErrorCode == 0 {
-						var tycItem TycMessageItem
-						for _, row := range tycMsg.Result{
-							tycItem = row
-							break
-						}
+						tycItem := tycMsg.Result
 						record.ApplicationCn = item.ApplicantCn
 						record.RegLocation = tycItem.RegLocation
 						record.Link = item.Link
@@ -86,7 +82,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 							log.Fatal(err)
 							return
 						}
-						fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName)
+						fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
 					}else{
 						fmt.Println(tycMsg)
 					}
@@ -150,11 +146,31 @@ func (qds *QdsScraper) PutData(data Record) (err error) {
 		err = os.Mkdir(path, 0755)
 		if err != nil {
 			log.Fatal(err)
-			return
 		}
 	}
-	csvFile := path + "/data.csv"
 	var f *os.File
+	//download image
+	imageBytes, err := qds.FetchImageByUrl(data.Link)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//filter
+	data.ApplicationCn = strings.Replace(data.ApplicationCn, "/", "", -1)
+	imageFile := "./data/"+data.RegNo+data.ApplicationCn+".jpg"
+	f, err = os.OpenFile(imageFile, os.O_CREATE|os.O_RDWR, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = f.Write(imageBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = f.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	//write csv record
+	csvFile := path + "/data.csv"
 	f, err = os.OpenFile(csvFile, os.O_APPEND|os.O_CREATE, 0755)
 
 	if err != nil {
@@ -168,43 +184,21 @@ func (qds *QdsScraper) PutData(data Record) (err error) {
 	_, err = f.Write(uline)
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
 	if err := f.Close(); err != nil {
 		log.Fatal(err)
-	}
-	//download image
-	imageBytes, err := qds.FetchImageByUrl(data.Link)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	//filter
-	data.ApplicationCn = strings.Replace(data.ApplicationCn, "/", "", -1)
-	imageFile := "./data/"+data.RegNo+data.ApplicationCn+".jpg"
-	f, err = os.OpenFile(imageFile, os.O_CREATE|os.O_RDWR, 0755)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	_, err = f.Write(imageBytes)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	if err = f.Close(); err != nil {
-		log.Fatal(err)
-		return
 	}
 	return
 }
 
 func (qds *QdsScraper) FetchImageByUrl(url string) (pix []byte, err error) {
-
+	if strings.Index(url, "http") < 0{
+		url = "https://tm-images.oss-cn-beijing.aliyuncs.com/png/"+url
+	}
 	resp, err := http.Get(url)
 	if err != nil {
+		fmt.Println(url)
 		log.Fatal(err)
-		return
 	}
 	defer resp.Body.Close()
 	pix, err = ioutil.ReadAll(resp.Body)
