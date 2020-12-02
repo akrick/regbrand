@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gocolly/colly"
 	jsoniter "github.com/json-iterator/go"
 	"log"
@@ -23,14 +22,11 @@ func (tyc *TianYanCha) GetMessageByUrlToken(name string)  (data TycMessage, err 
 	c := colly.NewCollector()
 	c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("Authorization", tyc.Token)
-		fmt.Println(name)
 		r.Ctx.Put("name", name)
 		r.Ctx.Put("keyword", name)
 	})
 	c.OnResponse(func(res *colly.Response) {
 		var json = jsoniter.ConfigCompatibleWithStandardLibrary
-		//fmt.Println(string(res.Body))
-		//os.Exit(0)
 		err := json.Unmarshal(res.Body, &result)
 		if err != nil{
 			log.Fatal(err)

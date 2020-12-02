@@ -89,6 +89,8 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 							log.Fatal(err)
 							return
 						}
+					}else{
+						log.Fatal(tycMsg)
 					}
 				}
 			})
