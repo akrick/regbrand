@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/gocolly/colly"
 	jsoniter "github.com/json-iterator/go"
+	"go.etcd.io/etcd/clientv3"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type QdsScraper struct {
@@ -26,6 +31,12 @@ func (qds *QdsScraper) SetCookie(cookie string) {
 }
 func (qds *QdsScraper) SetUrl(url string) {
 	qds.Url = url
+}
+func (qds *QdsScraper) GenerateHashKey(name string)  (hkey string){
+	h := md5.New()
+	h.Write([]byte(name))
+	hkey = hex.EncodeToString(h.Sum(nil))
+	return
 }
 func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error){
 	qds.No = period
@@ -54,49 +65,75 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 				err = json.Unmarshal([]byte(rs), &result)
 				if err != nil {
 					log.Fatal(err)
-					return
 				}
 				for _, item := range result {
-					var record Record
-					item.Link, _ = qds.FetchImage(item.RegNo, period, item.TmName)
-					tycMsg, err := qds.FetchContactInfo(item.ApplicantCn)
-					if err != nil{
-						log.Fatal(err)
+					hkey := qds.GenerateHashKey(item.ApplicantCn)
+					var (
+						config clientv3.Config
+						client *clientv3.Client
+						kv clientv3.KV
+					)
+					//客户端配置
+					config = clientv3.Config{
+						Endpoints:[]string{"127.0.0.1:2379"},
+						DialTimeout:5 * time.Second,
+					}
+					//建立连接
+					if client, err = clientv3.New(config);err != nil {
+						fmt.Println(err)
 						return
 					}
-					//if found contact info
-					if tycMsg.ErrorCode == 0 {
-						tycItem := tycMsg.Result
-						record.ApplicationCn = item.ApplicantCn
-						record.RegLocation = tycItem.RegLocation
-						record.Link = item.Link
-						record.PhoneNumber = tycItem.PhoneNumber
-						record.LegalPersonName = tycItem.LegalPersonName
-						record.TmName = item.TmName
-						record.IntCls = item.IntCls
-						record.RegNo = item.RegNo
-						record.AnnouncementIssue = item.AnnouncementIssue
-
-						err = qds.PutData(record)
-						if err != nil {
+					//得到操作etcd键值对的kv
+					kv = clientv3.NewKV(client)
+					_, err = kv.Get(context.TODO(), hkey)
+					if err == nil {
+						var record Record
+						item.Link, _ = qds.FetchImage(item.RegNo, period, item.TmName)
+						tycMsg, err := qds.FetchContactInfo(item.ApplicantCn)
+						if err != nil{
 							log.Fatal(err)
-							return
 						}
-						fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
+						//if found contact info
+						if tycMsg.ErrorCode == 0 {
+							tycItem := tycMsg.Result
+							record.ApplicationCn = item.ApplicantCn
+							record.RegLocation = tycItem.RegLocation
+							record.Link = item.Link
+							record.PhoneNumber = tycItem.PhoneNumber
+							record.LegalPersonName = tycItem.LegalPersonName
+							record.TmName = item.TmName
+							record.IntCls = item.IntCls
+							record.RegNo = item.RegNo
+							record.AnnouncementIssue = item.AnnouncementIssue
+
+							hjson, err := json.MarshalToString(record)
+							if err != nil {
+								log.Fatal(err)
+							}
+							_, err = kv.Put(context.TODO(), hkey, hjson)
+							if err != nil {
+								log.Fatal(err)
+							}
+							err = qds.PutData(record)
+							if err != nil {
+								log.Fatal(err)
+							}
+							fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
+						}else{
+							fmt.Println(tycMsg)
+						}
 					}else{
-						fmt.Println(tycMsg)
+						log.Fatal(err)
 					}
 				}
 			})
 
 			c.OnError(func(res *colly.Response, err error) {
 				log.Fatal(err)
-				return
 			})
 			err = c.Visit(url)
 			if err != nil {
 				log.Fatal(err)
-				return
 			}
 		}
 	}
@@ -123,7 +160,6 @@ func (qds *QdsScraper) FetchImage(id string, period int, name string)  (link str
 	err = c.Visit(url)
 	if err != nil{
 		log.Fatal(err)
-		return
 	}
 	return
 }
@@ -134,7 +170,6 @@ func (qds *QdsScraper) FetchContactInfo(name string) (tycMsg TycMessage, err err
 	tycMsg, err = tyc.GetMessageByUrlToken(name)
 	if err != nil{
 		log.Fatal(err)
-		return
 	}
 	return
 }
@@ -179,7 +214,6 @@ func (qds *QdsScraper) PutData(data Record) (err error) {
 	uline, err := data.ToString()
 	if err != nil {
 		log.Fatal(err)
-		return
 	}
 	_, err = f.Write(uline)
 	if err != nil {
