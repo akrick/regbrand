@@ -38,8 +38,8 @@ type TycMessageItem struct {
 	CompanyOrgType string `json:"companyOrgType"`
 	Base string `json:"base"`
 	CreditCode string `json:"creditCode"`
-	HistoryNames *HistoryName
-	HistoryNameList string `json:"historyNameList"`
+	HistoryNames string `json:"historyName"`
+	HistoryNameList []string `json:"historyNameList"`
 	BondNum string `json:"bondNum"`
 	RegCapitalCurrency string `json:"regCapitalCurrency"`
 	ActualCapitalCurrency string `json:"actualCapitalCurrency"`
@@ -48,7 +48,7 @@ type TycMessageItem struct {
 	PhoneNumber string `json:"phoneNumber"`
 	RevokeDate string `json:"revokeDate"`
 	RevokeReason string `json:"revokeReason"`
-	CancelDate string `json:"cancelDate"`
+	CancelDate int `json:"cancelDate"`
 	CancelReason string `json:"cancelReason"`
 	City string `json:"city"`
 	District string `json:"district"`
@@ -64,6 +64,6 @@ type Industry struct {
 	CategorySmall string `json:"categorySmall"`
 }
 
-type HistoryName struct {
-	Name string `json:"name"`
-}
+//type HistoryName struct {
+//	Name string `json:"name"`
+//}
