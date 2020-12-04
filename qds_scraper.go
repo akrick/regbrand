@@ -81,7 +81,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 					)
 					item.Link, _ = qds.FetchImage(item.RegNo, period, item.TmName)
 
-					hkey := qds.GenerateHashKey(item.RegNo)
+					hkey := qds.GenerateHashKey(item.ApplicantCn)
 					hjson, err := rdb.Get(context.Background(), hkey).Result()
 					if err == nil  || err == redis.Nil{//if hkey not exist
 						tycMsg, err = qds.FetchContactInfo(item.ApplicantCn)
