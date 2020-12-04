@@ -47,17 +47,21 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 	if pageNum > 0 {
 		c := colly.NewCollector()
 		for i := 0; i <= pageNum; i++{
-			url := qds.Url + "?&period="+strconv.Itoa(period)+"&category="+strconv.Itoa(category)+"&page="+strconv.Itoa(i)
+
+			params := url2.Values{}
+			params.Add("brandName", "")
+			params.Add("status", "all")
+			params.Add("applicationId", "")
+			params.Add("applicationName", "")
+			params.Add("agency", "")
+			params.Add("noticeTime", strconv.Itoa(period))
+			params.Add("typeCode", strconv.Itoa(category))
+			params.Add("page", strconv.Itoa(i))
+
+			query := params.Encode()
+			url := qds.Url + "?" + query
 			c.OnRequest(func(r *colly.Request) {
 				r.Headers.Set("cookie", qds.Cookie)
-				r.Ctx.Put("brandName", "")
-				r.Ctx.Put("status", "all")
-				r.Ctx.Put("applicationId", "")
-				r.Ctx.Put("applicationName", "")
-				r.Ctx.Put("agency", "")
-				r.Ctx.Put("noticeTime", "")
-				r.Ctx.Put("typeCode", "")
-				r.Ctx.Put("page", i)
 			})
 
 			c.OnResponse(func(res *colly.Response) {
@@ -70,8 +74,6 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 				if err != nil{
 					log.Fatal(err)
 				}
-				fmt.Println(result)
-				os.Exit(0)
 				for _, item := range result {
 					var (
 						record Record
@@ -113,9 +115,11 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 						if err != nil {
 							log.Fatal(err)
 						}
-						err = qds.PutData(record)
-						if err != nil {
-							log.Fatal(err)
+						if strings.Index(record.ApplicationCn, "公司") > 0 {
+							err = qds.PutData(record)
+							if err != nil {
+								log.Fatal(err)
+							}
 						}
 						fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
 					}else{
