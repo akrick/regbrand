@@ -5,9 +5,9 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"github.com/go-redis/redis/v8"
 	"github.com/gocolly/colly"
 	jsoniter "github.com/json-iterator/go"
-	"go.etcd.io/etcd/clientv3"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,7 +15,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type QdsScraper struct {
@@ -40,6 +39,11 @@ func (qds *QdsScraper) GenerateHashKey(name string)  (hkey string){
 }
 func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error){
 	qds.No = period
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "123456", // set password
+		DB:       0,  // use default DB
+	})
 	if pageNum > 0 {
 		c := colly.NewCollector()
 		for i := 0; i <= pageNum; i++{
@@ -63,67 +67,60 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 				var json = jsoniter.ConfigCompatibleWithStandardLibrary
 				var result []QdsItem
 				err = json.Unmarshal([]byte(rs), &result)
-				if err != nil {
+				if err != nil{
 					log.Fatal(err)
 				}
+				fmt.Println(result)
+				os.Exit(0)
 				for _, item := range result {
-					hkey := qds.GenerateHashKey(item.ApplicantCn)
 					var (
-						config clientv3.Config
-						client *clientv3.Client
-						kv clientv3.KV
+						record Record
+						tycMsg TycMessage
 					)
-					//客户端配置
-					config = clientv3.Config{
-						Endpoints:[]string{"127.0.0.1:2379"},
-						DialTimeout:5 * time.Second,
-					}
-					//建立连接
-					if client, err = clientv3.New(config);err != nil {
-						fmt.Println(err)
-						return
-					}
-					//得到操作etcd键值对的kv
-					kv = clientv3.NewKV(client)
-					_, err = kv.Get(context.TODO(), hkey)
-					if err == nil {
-						var record Record
-						item.Link, _ = qds.FetchImage(item.RegNo, period, item.TmName)
-						tycMsg, err := qds.FetchContactInfo(item.ApplicantCn)
+					item.Link, _ = qds.FetchImage(item.RegNo, period, item.TmName)
+
+					hkey := qds.GenerateHashKey(item.RegNo)
+					hjson, err := rdb.Get(context.Background(), hkey).Result()
+					if err == nil  || err == redis.Nil{//if hkey not exist
+						tycMsg, err = qds.FetchContactInfo(item.ApplicantCn)
 						if err != nil{
 							log.Fatal(err)
 						}
-						//if found contact info
-						if tycMsg.ErrorCode == 0 {
-							tycItem := tycMsg.Result
-							record.ApplicationCn = item.ApplicantCn
-							record.RegLocation = tycItem.RegLocation
-							record.Link = item.Link
-							record.PhoneNumber = tycItem.PhoneNumber
-							record.LegalPersonName = tycItem.LegalPersonName
-							record.TmName = item.TmName
-							record.IntCls = item.IntCls
-							record.RegNo = item.RegNo
-							record.AnnouncementIssue = item.AnnouncementIssue
-
-							hjson, err := json.MarshalToString(record)
-							if err != nil {
-								log.Fatal(err)
-							}
-							_, err = kv.Put(context.TODO(), hkey, hjson)
-							if err != nil {
-								log.Fatal(err)
-							}
-							err = qds.PutData(record)
-							if err != nil {
-								log.Fatal(err)
-							}
-							fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
-						}else{
-							fmt.Println(tycMsg)
-						}
 					}else{
-						log.Fatal(err)
+						err = json.UnmarshalFromString(hjson, tycMsg)
+						if err != nil{
+							log.Fatal(err)
+						}
+					}
+					//if found contact info
+					if tycMsg.ErrorCode == 0 {
+						tycItem := tycMsg.Result
+						record.ApplicationCn = item.ApplicantCn
+						record.RegLocation = tycItem.RegLocation
+						record.Link = item.Link
+						record.PhoneNumber = tycItem.PhoneNumber
+						record.LegalPersonName = tycItem.LegalPersonName
+						record.TmName = item.TmName
+						record.IntCls = item.IntCls
+						record.RegNo = item.RegNo
+						record.AnnouncementIssue = item.AnnouncementIssue
+
+						hjson, err := json.MarshalToString(record)
+						if err != nil {
+							log.Fatal(err)
+						}
+						err = rdb.Set(context.Background(), hkey, hjson, 0).Err()
+						if err != nil {
+							log.Fatal(err)
+						}
+						err = qds.PutData(record)
+						if err != nil {
+							log.Fatal(err)
+						}
+						fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
+					}else{
+						//do nothing
+						//fmt.Println(tycMsg)
 					}
 				}
 			})
