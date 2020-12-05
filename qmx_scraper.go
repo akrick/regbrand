@@ -138,71 +138,6 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 				}
 			})
 
-			//c.OnResponse(func(res *colly.Response) {
-			//
-			//	html := res.Body
-			//	rs := jsoniter.Get(html[:], "data").Get("data").Get("items").ToString()
-			//	var json = jsoniter.ConfigCompatibleWithStandardLibrary
-			//	var result []QdsItem
-			//	err = json.Unmarshal([]byte(rs), &result)
-			//	if err != nil{
-			//		log.Fatal(err)
-			//	}
-			//	for _, item := range result {
-			//		var (
-			//			record Record
-			//			tycMsg TycMessage
-			//		)
-			//		item.Link, _ = qmx.FetchImage(item.RegNo, period, item.TmName)
-			//
-			//		hkey := qmx.GenerateHashKey(item.ApplicantCn)
-			//		hjson, err := rdb.Get(context.Background(), hkey).Result()
-			//		if err == nil  || err == redis.Nil{//if hkey not exist
-			//			tycMsg, err = qmx.FetchContactInfo(item.ApplicantCn)
-			//			if err != nil{
-			//				log.Fatal(err)
-			//			}
-			//		}else{
-			//			err = json.UnmarshalFromString(hjson, tycMsg)
-			//			if err != nil{
-			//				log.Fatal(err)
-			//			}
-			//		}
-			//		//if found contact info
-			//		if tycMsg.ErrorCode == 0 {
-			//			tycItem := tycMsg.Result
-			//			record.ApplicationCn = item.ApplicantCn
-			//			record.RegLocation = tycItem.RegLocation
-			//			record.Link = item.Link
-			//			record.PhoneNumber = tycItem.PhoneNumber
-			//			record.LegalPersonName = tycItem.LegalPersonName
-			//			record.TmName = item.TmName
-			//			record.IntCls = item.IntCls
-			//			record.RegNo = item.RegNo
-			//			record.AnnouncementIssue = item.AnnouncementIssue
-			//
-			//			hjson, err := json.MarshalToString(record)
-			//			if err != nil {
-			//				log.Fatal(err)
-			//			}
-			//			err = rdb.Set(context.Background(), hkey, hjson, 0).Err()
-			//			if err != nil {
-			//				log.Fatal(err)
-			//			}
-			//			if strings.Index(record.ApplicationCn, "公司") > 0 {
-			//				err = qmx.PutData(record)
-			//				if err != nil {
-			//					log.Fatal(err)
-			//				}
-			//			}
-			//			fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
-			//		}else{
-			//			//do nothing
-			//			//fmt.Println(tycMsg)
-			//		}
-			//	}
-			//})
-
 			c.OnError(func(res *colly.Response, err error) {
 				log.Fatal(err)
 			})
@@ -250,7 +185,7 @@ func (qmx *QmxScraper) FetchContactInfo(name string) (tycMsg TycMessage, err err
 }
 
 func (qmx *QmxScraper) PutData(data Record) (err error) {
-	path := "./data"
+	path := "./qmxdata"
 	_, err = os.Stat(path)
 	if os.IsNotExist(err){
 		err = os.Mkdir(path, 0755)

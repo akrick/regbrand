@@ -178,7 +178,7 @@ func (qds *QdsScraper) FetchContactInfo(name string) (tycMsg TycMessage, err err
 }
 
 func (qds *QdsScraper) PutData(data Record) (err error) {
-	path := "./data"
+	path := "./qdsdata"
 	_, err = os.Stat(path)
 	if os.IsNotExist(err){
 		err = os.Mkdir(path, 0755)
