@@ -82,19 +82,14 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 						if err != nil{
 							log.Fatal(err)
 						}
-						//fmt.Println(qmxItem)
-						//os.Exit(0)
+
 						var tycMsg TycMessage
 						var record Record
 						var json = jsoniter.ConfigCompatibleWithStandardLibrary
-						tycMsg, err = qmx.FetchContactInfo(qmxItem.Applyer)
-						if err != nil{
-							log.Fatal(err)
-						}
 
 						hkey := qmx.GenerateHashKey(qmxItem.Applyer)
 						hjson, err := rdb.Get(context.Background(), hkey).Result()
-						if err == nil  || err == redis.Nil{//if hkey not exist
+						if err == nil  || err == redis.Nil || hjson == ""{//if hkey not exist
 							tycMsg, err = qmx.FetchContactInfo(qmxItem.Applyer)
 							if err != nil{
 								log.Fatal(err)
