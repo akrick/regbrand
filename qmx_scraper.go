@@ -64,7 +64,10 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div:nth-child(2) > div.notice-pattern.mb20 > div.pattern-img.pc > div.fr > ul > li > img", func(el *colly.HTMLElement) {
 							//regImage := el.Attr("src")
 						})
-						c.Visit(link)
+						err = c.Visit(link)
+						if err != nil{
+							log.Fatal(err)
+						}
 					}
 				}
 			})
