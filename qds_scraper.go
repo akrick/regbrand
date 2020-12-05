@@ -45,9 +45,10 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 		DB:       0,  // use default DB
 	})
 	if pageNum > 0 {
-		c := colly.NewCollector()
-		for i := 0; i <= pageNum; i++{
 
+		c := colly.NewCollector()
+		//c.Async = true
+		for i := 0; i <= pageNum; i++{
 			params := url2.Values{}
 			params.Add("brandName", "")
 			params.Add("status", "all")
@@ -67,10 +68,10 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 			c.OnResponse(func(res *colly.Response) {
 
 				html := res.Body
-				rs := jsoniter.Get(html[:], "data").Get("data").Get("items").ToString()
+				items := jsoniter.Get(html[:], "data").Get("data").Get("items").ToString()
 				var json = jsoniter.ConfigCompatibleWithStandardLibrary
 				var result []QdsItem
-				err = json.Unmarshal([]byte(rs), &result)
+				err = json.Unmarshal([]byte(items), &result)
 				if err != nil{
 					log.Fatal(err)
 				}
@@ -83,7 +84,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 
 					hkey := qds.GenerateHashKey(item.ApplicantCn)
 					hjson, err := rdb.Get(context.Background(), hkey).Result()
-					if err == nil  || err == redis.Nil{//if hkey not exist
+					if err == nil  || err == redis.Nil || hjson == ""{//if hkey not exist
 						tycMsg, err = qds.FetchContactInfo(item.ApplicantCn)
 						if err != nil{
 							log.Fatal(err)
@@ -137,6 +138,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 				log.Fatal(err)
 			}
 		}
+		//c.Wait()
 	}
 	return
 }
