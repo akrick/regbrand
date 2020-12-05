@@ -59,12 +59,12 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 					for _, item := range urls{
 						link := "https://sbgg.qmxip.com"+item
 						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div.tm-header.parts > div.tm_n_r.box.fl > a > b", func(el *colly.HTMLElement) {
-							regName := el.Text
+							//regName := el.Text
 						})
 						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div:nth-child(2) > div.notice-pattern.mb20 > div.pattern-img.pc > div.fr > ul > li > img", func(el *colly.HTMLElement) {
-							regImage := el.Attr("src")
+							//regImage := el.Attr("src")
 						})
-
+						c.Visit(link)
 					}
 				}
 			})
