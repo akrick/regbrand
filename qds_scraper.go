@@ -47,7 +47,8 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 	if pageNum > 0 {
 
 		c := colly.NewCollector()
-		//c.Async = true
+		c.Async = true
+		_ = c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 10})
 		for i := 0; i <= pageNum; i++{
 			params := url2.Values{}
 			params.Add("brandName", "")
@@ -137,8 +138,8 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 			if err != nil {
 				log.Fatal(err)
 			}
+			c.Wait()
 		}
-		//c.Wait()
 	}
 	return
 }

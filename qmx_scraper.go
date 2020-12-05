@@ -46,6 +46,8 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 	})
 	if pageNum > 0 {
 		c := colly.NewCollector()
+		//c.Async = true
+		//_ = c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 10})
 		for i := 1; i <= pageNum; i++{
 			var urls []string
 			query := "y"+strconv.Itoa(period)+"z"+strconv.Itoa(category)+"w"+strconv.Itoa(i)+"/"
@@ -63,6 +65,7 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 						qmxItem.Period = period
 						qmxItem.Category = category
 						qmxItem.Link = item
+
 						c.OnRequest(func(r *colly.Request) {
 							r.Headers.Set("cookie", qmx.Cookie)
 						})
@@ -140,6 +143,7 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 			if err != nil {
 				log.Fatal(err)
 			}
+			//c.Wait()
 		}
 	}
 	return
