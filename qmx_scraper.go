@@ -46,96 +46,162 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 	})
 	if pageNum > 0 {
 		c := colly.NewCollector()
-		for i := 0; i <= pageNum; i++{
+		for i := 1; i <= pageNum; i++{
 			var urls []string
-			query := "y"+strconv.Itoa(period)+"z"+strconv.Itoa(category)+"w"+strconv.Itoa(i)
+			query := "y"+strconv.Itoa(period)+"z"+strconv.Itoa(category)+"w"+strconv.Itoa(i)+"/"
 			url := qmx.Url + query
 			c.OnRequest(func(r *colly.Request) {
-				//r.Headers.Set("cookie", qmx.Cookie)
+				r.Headers.Set("cookie", qmx.Cookie)
 			})
-			c.OnHTML("#__layout > div > div.pageIndex.wap > section > div.list-anni.wap > ul > li > div.m-box > div", func(e *colly.HTMLElement) {
-				urls = e.ChildAttrs("a", "href")
-				if urls != nil {
+			c.OnHTML("#__layout > div > div.pageIndex.wap > section > div.list-anni.wap > ul", func(e *colly.HTMLElement) {
+				e.ForEach("div.m-box > div > a", func(n int, el *colly.HTMLElement) {
+					urls = append(urls, el.Request.AbsoluteURL(el.Attr("href")))
+				})
+				if size := len(urls); size > 0 {
 					for _, item := range urls{
-						link := "https://sbgg.qmxip.com"+item
+						qmxItem := new(QmxItem)
+						qmxItem.Period = period
+						qmxItem.Category = category
+						qmxItem.Link = item
+						c.OnRequest(func(r *colly.Request) {
+							r.Headers.Set("cookie", qmx.Cookie)
+						})
 						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div.tm-header.parts > div.tm_n_r.box.fl > a > b", func(el *colly.HTMLElement) {
-							//regName := el.Text
+							qmxItem.Brand = strings.ReplaceAll(strings.ReplaceAll(el.Text, " ", ""), "\n", "")
+						})
+						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div.tm-header.parts > div.tm_n_r.box.fl > div > span:nth-child(2)", func(el *colly.HTMLElement) {
+							qmxItem.RegNo = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(el.Text, " ", ""), "申请/注册号：\n", ""), "\n", "")
 						})
 						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div:nth-child(2) > div.notice-pattern.mb20 > div.pattern-img.pc > div.fr > ul > li > img", func(el *colly.HTMLElement) {
-							//regImage := el.Attr("src")
+							qmxItem.Image = el.Attr("src")
 						})
-						err = c.Visit(link)
+						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div:nth-child(2) > div:nth-child(3) > div > p:nth-child(8)", func(el *colly.HTMLElement) {
+							qmxItem.Applyer = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(el.Text, " ", ""), "申请人：\n", ""), "\n", "")
+						})
+						err = c.Visit(qmxItem.Link)
 						if err != nil{
 							log.Fatal(err)
 						}
-					}
-				}
-			})
-
-			c.OnResponse(func(res *colly.Response) {
-
-				html := res.Body
-				rs := jsoniter.Get(html[:], "data").Get("data").Get("items").ToString()
-				var json = jsoniter.ConfigCompatibleWithStandardLibrary
-				var result []QdsItem
-				err = json.Unmarshal([]byte(rs), &result)
-				if err != nil{
-					log.Fatal(err)
-				}
-				for _, item := range result {
-					var (
-						record Record
-						tycMsg TycMessage
-					)
-					item.Link, _ = qmx.FetchImage(item.RegNo, period, item.TmName)
-
-					hkey := qmx.GenerateHashKey(item.ApplicantCn)
-					hjson, err := rdb.Get(context.Background(), hkey).Result()
-					if err == nil  || err == redis.Nil{//if hkey not exist
-						tycMsg, err = qmx.FetchContactInfo(item.ApplicantCn)
+						//fmt.Println(qmxItem)
+						//os.Exit(0)
+						var tycMsg TycMessage
+						var record Record
+						var json = jsoniter.ConfigCompatibleWithStandardLibrary
+						tycMsg, err = qmx.FetchContactInfo(qmxItem.Applyer)
 						if err != nil{
 							log.Fatal(err)
 						}
-					}else{
-						err = json.UnmarshalFromString(hjson, tycMsg)
-						if err != nil{
-							log.Fatal(err)
-						}
-					}
-					//if found contact info
-					if tycMsg.ErrorCode == 0 {
-						tycItem := tycMsg.Result
-						record.ApplicationCn = item.ApplicantCn
-						record.RegLocation = tycItem.RegLocation
-						record.Link = item.Link
-						record.PhoneNumber = tycItem.PhoneNumber
-						record.LegalPersonName = tycItem.LegalPersonName
-						record.TmName = item.TmName
-						record.IntCls = item.IntCls
-						record.RegNo = item.RegNo
-						record.AnnouncementIssue = item.AnnouncementIssue
 
-						hjson, err := json.MarshalToString(record)
-						if err != nil {
-							log.Fatal(err)
-						}
-						err = rdb.Set(context.Background(), hkey, hjson, 0).Err()
-						if err != nil {
-							log.Fatal(err)
-						}
-						if strings.Index(record.ApplicationCn, "公司") > 0 {
-							err = qmx.PutData(record)
-							if err != nil {
+						hkey := qmx.GenerateHashKey(qmxItem.Applyer)
+						hjson, err := rdb.Get(context.Background(), hkey).Result()
+						if err == nil  || err == redis.Nil{//if hkey not exist
+							tycMsg, err = qmx.FetchContactInfo(qmxItem.Applyer)
+							if err != nil{
+								log.Fatal(err)
+							}
+						}else{
+							err = json.UnmarshalFromString(hjson, tycMsg)
+							if err != nil{
 								log.Fatal(err)
 							}
 						}
-						fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
-					}else{
-						//do nothing
-						//fmt.Println(tycMsg)
+						//if found contact info
+						if tycMsg.ErrorCode == 0 {
+							tycItem := tycMsg.Result
+							record.ApplicationCn = qmxItem.Applyer
+							record.RegLocation = tycItem.RegLocation
+							record.Link = qmxItem.Image
+							record.PhoneNumber = tycItem.PhoneNumber
+							record.LegalPersonName = tycItem.LegalPersonName
+							record.TmName = qmxItem.Brand
+							record.IntCls = qmxItem.Category
+							record.RegNo = qmxItem.RegNo
+							record.AnnouncementIssue = qmxItem.Period
+
+							hjson, err := json.MarshalToString(record)
+							if err != nil {
+								log.Fatal(err)
+							}
+							err = rdb.Set(context.Background(), hkey, hjson, 0).Err()
+							if err != nil {
+								log.Fatal(err)
+							}
+							if strings.Index(record.ApplicationCn, "公司") > 0 {
+								err = qmx.PutData(record)
+								if err != nil {
+									log.Fatal(err)
+								}
+							}
+							fmt.Println(qmxItem.RegNo + " " + qmxItem.Applyer + " " + qmxItem.Brand + " " + qmxItem.Image)
+						}
 					}
 				}
 			})
+
+			//c.OnResponse(func(res *colly.Response) {
+			//
+			//	html := res.Body
+			//	rs := jsoniter.Get(html[:], "data").Get("data").Get("items").ToString()
+			//	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+			//	var result []QdsItem
+			//	err = json.Unmarshal([]byte(rs), &result)
+			//	if err != nil{
+			//		log.Fatal(err)
+			//	}
+			//	for _, item := range result {
+			//		var (
+			//			record Record
+			//			tycMsg TycMessage
+			//		)
+			//		item.Link, _ = qmx.FetchImage(item.RegNo, period, item.TmName)
+			//
+			//		hkey := qmx.GenerateHashKey(item.ApplicantCn)
+			//		hjson, err := rdb.Get(context.Background(), hkey).Result()
+			//		if err == nil  || err == redis.Nil{//if hkey not exist
+			//			tycMsg, err = qmx.FetchContactInfo(item.ApplicantCn)
+			//			if err != nil{
+			//				log.Fatal(err)
+			//			}
+			//		}else{
+			//			err = json.UnmarshalFromString(hjson, tycMsg)
+			//			if err != nil{
+			//				log.Fatal(err)
+			//			}
+			//		}
+			//		//if found contact info
+			//		if tycMsg.ErrorCode == 0 {
+			//			tycItem := tycMsg.Result
+			//			record.ApplicationCn = item.ApplicantCn
+			//			record.RegLocation = tycItem.RegLocation
+			//			record.Link = item.Link
+			//			record.PhoneNumber = tycItem.PhoneNumber
+			//			record.LegalPersonName = tycItem.LegalPersonName
+			//			record.TmName = item.TmName
+			//			record.IntCls = item.IntCls
+			//			record.RegNo = item.RegNo
+			//			record.AnnouncementIssue = item.AnnouncementIssue
+			//
+			//			hjson, err := json.MarshalToString(record)
+			//			if err != nil {
+			//				log.Fatal(err)
+			//			}
+			//			err = rdb.Set(context.Background(), hkey, hjson, 0).Err()
+			//			if err != nil {
+			//				log.Fatal(err)
+			//			}
+			//			if strings.Index(record.ApplicationCn, "公司") > 0 {
+			//				err = qmx.PutData(record)
+			//				if err != nil {
+			//					log.Fatal(err)
+			//				}
+			//			}
+			//			fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
+			//		}else{
+			//			//do nothing
+			//			//fmt.Println(tycMsg)
+			//		}
+			//	}
+			//})
 
 			c.OnError(func(res *colly.Response, err error) {
 				log.Fatal(err)
