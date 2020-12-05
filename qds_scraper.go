@@ -194,7 +194,7 @@ func (qds *QdsScraper) PutData(data Record) (err error) {
 	}
 	//filter
 	data.ApplicationCn = strings.Replace(data.ApplicationCn, "/", "", -1)
-	imageFile := "./data/"+data.RegNo+data.ApplicationCn+".jpg"
+	imageFile := "./qdsdata/"+data.RegNo+data.ApplicationCn+".jpg"
 	f, err = os.OpenFile(imageFile, os.O_CREATE|os.O_RDWR, 0755)
 	if err != nil {
 		log.Fatal(err)
