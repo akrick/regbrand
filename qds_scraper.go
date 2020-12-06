@@ -48,6 +48,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 
 		c := colly.NewCollector()
 		c.Async = true
+		c.AllowURLRevisit = true
 		//_ = c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 10})
 		for i := 0; i <= pageNum; i++{
 			params := url2.Values{}
@@ -62,6 +63,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 
 			query := params.Encode()
 			url := qds.Url + "?" + query
+			fmt.Println(url)
 			c.OnRequest(func(r *colly.Request) {
 				r.Headers.Set("cookie", qds.Cookie)
 			})
