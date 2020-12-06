@@ -134,7 +134,17 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 									log.Fatal(err)
 								}
 							}
-							fmt.Println(qmxItem.RegNo + " " + qmxItem.Applyer + " " + qmxItem.Brand + " " + qmxItem.Image)
+
+							var build strings.Builder
+							build.WriteString(qmxItem.RegNo)
+							build.WriteString("")
+							build.WriteString(qmxItem.Applyer)
+							build.WriteString("")
+							build.WriteString(qmxItem.Brand)
+							build.WriteString("")
+							build.WriteString(qmxItem.Image)
+							outStr := build.String()
+							fmt.Println(outStr)
 						}
 					}
 				}

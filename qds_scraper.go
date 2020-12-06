@@ -47,7 +47,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 	if pageNum > 0 {
 
 		c := colly.NewCollector()
-		c.Async = true
+		//c.Async = true
 		c.AllowURLRevisit = true
 		//_ = c.Limit(&colly.LimitRule{DomainGlob: "*", Parallelism: 10})
 		for i := 0; i <= pageNum; i++{
@@ -125,7 +125,16 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 								log.Fatal(err)
 							}
 						}
-						fmt.Println(item.RegNo+" "+item.ApplicantCn+" "+item.TmName+" "+item.Link)
+						var build strings.Builder
+						build.WriteString(item.RegNo)
+						build.WriteString("")
+						build.WriteString(item.ApplicantCn)
+						build.WriteString("")
+						build.WriteString(item.TmName)
+						build.WriteString("")
+						build.WriteString(item.Link)
+						outStr := build.String()
+						fmt.Println(outStr)
 					}else{
 						//do nothing
 						//fmt.Println(tycMsg)
@@ -140,7 +149,7 @@ func (qds *QdsScraper) Search(period int, category int, pageNum int) (err error)
 			if err != nil {
 				log.Fatal(err)
 			}
-			c.Wait()
+			//c.Wait()
 		}
 	}
 	return
