@@ -52,6 +52,7 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 			var urls []string
 			query := "y"+strconv.Itoa(period)+"z"+strconv.Itoa(category)+"w"+strconv.Itoa(i)+"/"
 			url := qmx.Url + query
+			fmt.Println(url)
 			c.OnRequest(func(r *colly.Request) {
 				//r.Headers.Set("cookie", qmx.Cookie)
 			})
@@ -68,6 +69,7 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 						qmxItem.Category = category
 						qmxItem.Link = item
 						cc := c.Clone()
+						cc.AllowURLRevisit = true
 						cc.OnRequest(func(r *colly.Request) {
 							r.Headers.Set("cookie", qmx.Cookie)
 						})
