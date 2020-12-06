@@ -46,7 +46,7 @@ type TycMessageItem struct {
 	Email string `json:"email"`
 	WebsiteList string `json:"websiteList"`
 	PhoneNumber string `json:"phoneNumber"`
-	RevokeDate string `json:"revokeDate"`
+	RevokeDate int `json:"revokeDate"`
 	RevokeReason string `json:"revokeReason"`
 	CancelDate int `json:"cancelDate"`
 	CancelReason string `json:"cancelReason"`

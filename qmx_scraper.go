@@ -53,9 +53,11 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 			query := "y"+strconv.Itoa(period)+"z"+strconv.Itoa(category)+"w"+strconv.Itoa(i)+"/"
 			url := qmx.Url + query
 			c.OnRequest(func(r *colly.Request) {
-				r.Headers.Set("cookie", qmx.Cookie)
+				//r.Headers.Set("cookie", qmx.Cookie)
 			})
 			c.OnHTML("#__layout > div > div.pageIndex.wap > section > div.list-anni.wap > ul", func(e *colly.HTMLElement) {
+				//清空urls
+				urls := urls[0:0]
 				e.ForEach("div.m-box > div > a", func(n int, el *colly.HTMLElement) {
 					urls = append(urls, el.Request.AbsoluteURL(el.Attr("href")))
 				})
@@ -65,23 +67,23 @@ func (qmx *QmxScraper) Search(period int, category int, pageNum int) (err error)
 						qmxItem.Period = period
 						qmxItem.Category = category
 						qmxItem.Link = item
-
-						c.OnRequest(func(r *colly.Request) {
+						cc := c.Clone()
+						cc.OnRequest(func(r *colly.Request) {
 							r.Headers.Set("cookie", qmx.Cookie)
 						})
-						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div.tm-header.parts > div.tm_n_r.box.fl > a > b", func(el *colly.HTMLElement) {
+						cc.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div.tm-header.parts > div.tm_n_r.box.fl > a > b", func(el *colly.HTMLElement) {
 							qmxItem.Brand = strings.ReplaceAll(strings.ReplaceAll(el.Text, " ", ""), "\n", "")
 						})
-						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div.tm-header.parts > div.tm_n_r.box.fl > div > span:nth-child(2)", func(el *colly.HTMLElement) {
+						cc.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div.tm-header.parts > div.tm_n_r.box.fl > div > span:nth-child(2)", func(el *colly.HTMLElement) {
 							qmxItem.RegNo = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(el.Text, " ", ""), "申请/注册号：\n", ""), "\n", "")
 						})
-						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div:nth-child(2) > div.notice-pattern.mb20 > div.pattern-img.pc > div.fr > ul > li > img", func(el *colly.HTMLElement) {
+						cc.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div:nth-child(2) > div.notice-pattern.mb20 > div.pattern-img.pc > div.fr > ul > li > img", func(el *colly.HTMLElement) {
 							qmxItem.Image = el.Attr("src")
 						})
-						c.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div:nth-child(2) > div:nth-child(3) > div > p:nth-child(8)", func(el *colly.HTMLElement) {
+						cc.OnHTML("#__layout > div > div.list > div > div.notice-content > div.fl.lbox > div:nth-child(2) > div:nth-child(3) > div > p:nth-child(8)", func(el *colly.HTMLElement) {
 							qmxItem.Applyer = strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(el.Text, " ", ""), "申请人：\n", ""), "\n", "")
 						})
-						err = c.Visit(qmxItem.Link)
+						err = cc.Visit(qmxItem.Link)
 						if err != nil{
 							log.Fatal(err)
 						}
